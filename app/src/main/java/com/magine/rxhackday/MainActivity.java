@@ -67,16 +67,17 @@ public class MainActivity extends AppCompatActivity {
 			@Override
 			public final void onNext(SearchHit response) {
 				Log.i(TAG, "Next: " + response.title);
+				resultText.setText(resultText.getText() + "\n" + response.title);
 			}
 		};
 
 		RxTextView.textChanges(mEditText)
-				  .debounce(300, TimeUnit.MILLISECONDS)
+				  .filter(e -> e.length() > 2)
+				  .debounce(1000, TimeUnit.MILLISECONDS)
 				  .flatMap(e -> RestService.getCoolService().search(e.toString()))
 				  .observeOn(AndroidSchedulers.mainThread())
 				  .flatMap(response -> Observable.from(response.responseData.results))
 				  .flatMap(this::makeHit)
-				  .doOnCompleted(() -> Log.i(TAG, "COMPLETE"))
 				  .subscribe(subscriber);
 	}
 
@@ -89,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
 			@Override
 			public void call(Subscriber<? super SearchHit> subscriber) {
 				subscriber.onNext(new SearchHit(result.title));
+				subscriber.onCompleted();
 			}
 		});
 	}
@@ -119,7 +121,9 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	public void fireButton(View view) {
-		RestService.getCoolService().search("Christmas").subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
+		RestService.getCoolService().search("Christmas")
+				   .subscribeOn(Schedulers.newThread())
+				   .observeOn(AndroidSchedulers.mainThread())
 				   .subscribe(response -> Log.i(TAG, response.toString()));
 	}
 }
