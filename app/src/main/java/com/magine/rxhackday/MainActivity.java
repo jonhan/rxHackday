@@ -10,16 +10,24 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import com.jakewharton.rxbinding.widget.RxTextView;
+import com.magine.rxhackday.api.CoolService;
+import com.magine.rxhackday.api.Response;
 import com.magine.rxhackday.api.RestService;
 
 import java.util.concurrent.TimeUnit;
+
+import rx.Subscriber;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
 
 	private static final String TAG = MainActivity.class.getSimpleName();
 	private EditText mEditText;
+	private TextView resultText;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -41,11 +49,32 @@ public class MainActivity extends AppCompatActivity {
 
 	private void configTextField() {
 		mEditText = (EditText) findViewById(R.id.search_edittext);
+		resultText = (TextView) findViewById(R.id.result_text);
+
+		Subscriber subscriber = new Subscriber<Response>() {
+			@Override
+			public final void onCompleted() {
+				// do nothing
+			}
+
+			@Override
+			public final void onError(Throwable e) {
+				Log.e("RxHackDay", e.getMessage());
+			}
+
+			@Override
+			public final void onNext(Response response) {
+				Log.i(TAG, "Next: " + response.toString());
+				resultText.setText(response.responseData.results.toString());
+			}
+		};
+
 		RxTextView.textChanges(mEditText)
-				.debounce(1000, TimeUnit.MILLISECONDS)
-				.filter(e -> e.toString().contains("ab"))
-				.map(Object::hashCode)
-				.subscribe(e -> Log.i(TAG, e.toString()));
+				.debounce(300, TimeUnit.MILLISECONDS)
+				.doOnCompleted(() -> printText("Searching "))
+				.flatMap(e -> RestService.getCoolService().search(e.toString()))
+				.observeOn(AndroidSchedulers.mainThread())
+				.subscribe(subscriber);
 	}
 
 	private void printText(String text) {
@@ -75,5 +104,10 @@ public class MainActivity extends AppCompatActivity {
 		}
 
 		return super.onOptionsItemSelected(item);
+	}
+
+	public void fireButton(View view) {
+		RestService.getCoolService().search("Christmas").subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
+				.subscribe(response -> Log.i(TAG, response.toString()));
 	}
 }

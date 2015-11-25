@@ -1,10 +1,10 @@
 package com.magine.rxhackday.api;
 
 import retrofit.http.GET;
-import retrofit.http.Path;
+import retrofit.http.Query;
 import rx.Observable;
 
 public interface CoolService {
-	@GET("http://ajax.googleapis.com/ajax/services/search/web?v=1.0&q={query}")
-	Observable<retrofit.client.Response> search(@Path(value = "query", encode = true) String query);
+	@GET("/ajax/services/search/web?v=1.0")
+	Observable<Response> search(@Query("q") String query);
 }

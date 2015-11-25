@@ -15,10 +15,10 @@ public final class RestService {
 
 	public static void createRestAdapter() {
 
-		sBaseApiAdapter = new RestAdapter.Builder().build();
+		sBaseApiAdapter = new RestAdapter.Builder().setLogLevel(RestAdapter.LogLevel.FULL).setEndpoint("http://ajax.googleapis.com/").build();
 	}
 
 	public static CoolService getCoolService() {
-		return sBaseApiAdapter.create(CoolService.class);
+		return getBaseApiAdapter().create(CoolService.class);
 	}
 }
