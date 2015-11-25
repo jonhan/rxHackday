@@ -6,19 +6,21 @@ import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.jakewharton.rxbinding.widget.RxTextView;
-import com.magine.rxhackday.api.CoolService;
-import com.magine.rxhackday.api.Response;
 import com.magine.rxhackday.api.RestService;
+import com.magine.rxhackday.api.Result;
+import com.magine.rxhackday.api.SearchHit;
 
 import java.util.concurrent.TimeUnit;
 
+import rx.Observable;
 import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
@@ -51,10 +53,10 @@ public class MainActivity extends AppCompatActivity {
 		mEditText = (EditText) findViewById(R.id.search_edittext);
 		resultText = (TextView) findViewById(R.id.result_text);
 
-		Subscriber subscriber = new Subscriber<Response>() {
+		Subscriber subscriber = new Subscriber<SearchHit>() {
 			@Override
 			public final void onCompleted() {
-				// do nothing
+				Toast.makeText(MainActivity.this, "Search complete", Toast.LENGTH_SHORT).show();
 			}
 
 			@Override
@@ -63,22 +65,32 @@ public class MainActivity extends AppCompatActivity {
 			}
 
 			@Override
-			public final void onNext(Response response) {
-				Log.i(TAG, "Next: " + response.toString());
-				resultText.setText(response.responseData.results.toString());
+			public final void onNext(SearchHit response) {
+				Log.i(TAG, "Next: " + response.title);
 			}
 		};
 
 		RxTextView.textChanges(mEditText)
-				.debounce(300, TimeUnit.MILLISECONDS)
-				.doOnCompleted(() -> printText("Searching "))
-				.flatMap(e -> RestService.getCoolService().search(e.toString()))
-				.observeOn(AndroidSchedulers.mainThread())
-				.subscribe(subscriber);
+				  .debounce(300, TimeUnit.MILLISECONDS)
+				  .flatMap(e -> RestService.getCoolService().search(e.toString()))
+				  .observeOn(AndroidSchedulers.mainThread())
+				  .flatMap(response -> Observable.from(response.responseData.results))
+				  .flatMap(this::makeHit)
+				  .doOnCompleted(() -> Log.i(TAG, "COMPLETE"))
+				  .subscribe(subscriber);
 	}
 
 	private void printText(String text) {
 		Log.i(TAG, text);
+	}
+
+	private Observable<SearchHit> makeHit(Result result) {
+		return Observable.create(new Observable.OnSubscribe<SearchHit>() {
+			@Override
+			public void call(Subscriber<? super SearchHit> subscriber) {
+				subscriber.onNext(new SearchHit(result.title));
+			}
+		});
 	}
 
 	private void performSearch(String query) {
@@ -108,6 +120,6 @@ public class MainActivity extends AppCompatActivity {
 
 	public void fireButton(View view) {
 		RestService.getCoolService().search("Christmas").subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
-				.subscribe(response -> Log.i(TAG, response.toString()));
+				   .subscribe(response -> Log.i(TAG, response.toString()));
 	}
 }
